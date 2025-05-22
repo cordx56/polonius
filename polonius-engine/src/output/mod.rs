@@ -8,6 +8,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+use std::time::SystemTime;
+
 use datafrog::Relation;
 use rustc_hash::{FxHashMap, FxHashSet};
 use std::borrow::Cow;
@@ -20,6 +22,38 @@ mod initialization;
 mod liveness;
 mod location_insensitive;
 mod naive;
+
+use std::collections::HashSet;
+use std::path::PathBuf;
+use std::sync::{LazyLock, RwLock};
+
+const CACHE_FILE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
+    let krate = std::env::var("CARGO_CRATE_NAME").unwrap();
+    if let Ok(meta) = cargo_metadata::MetadataCommand::new().exec() {
+        let pathbuf = meta.target_directory.join("fustc");
+        std::fs::create_dir_all(&pathbuf).unwrap();
+        pathbuf.join(&krate).into()
+    } else {
+        let pathbuf = PathBuf::from("target").join("fustc");
+        std::fs::create_dir_all(&pathbuf).unwrap();
+        pathbuf.join(&krate)
+    }
+});
+pub const CACHE: LazyLock<RwLock<HashSet<serde_json::Value>>> = LazyLock::new(|| {
+    use std::io::Read;
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .read(true)
+        .open(&*CACHE_FILE_PATH)
+    {
+        let mut buf = Vec::with_capacity(4096);
+        if file.read_to_end(&mut buf).is_ok() {
+            if let Ok(cache) = serde_json::from_slice(&buf) {
+                return RwLock::new(cache);
+            }
+        }
+    }
+    RwLock::new(HashSet::new())
+});
 
 #[derive(Debug, Clone, Copy)]
 pub enum Algorithm {
@@ -157,6 +191,19 @@ impl<T: FactTypes> Output<T> {
     ///   partial results can also be stored in the context, so that the following
     ///   variant can use it to prune its own input data
     pub fn compute(all_facts: &AllFacts<T>, algorithm: Algorithm, dump_enabled: bool) -> Self {
+        let start = SystemTime::now();
+
+        let fustc_enable = option_env!("ENABLE_FUSTC").is_some();
+        if fustc_enable {
+            if CACHE
+                .read()
+                .unwrap()
+                .contains(&serde_json::to_value(all_facts).unwrap())
+            {
+                return Self::new(false);
+            }
+        }
+
         let mut result = Output::new(dump_enabled);
 
         // TODO: remove all the cloning thereafter, but that needs to be done in concert with rustc
@@ -390,6 +437,16 @@ impl<T: FactTypes> Output<T> {
                     .or_default()
                     .insert(loan);
             }
+        }
+
+        let end = SystemTime::now();
+        let duration = end.duration_since(start).unwrap().as_nanos();
+        println!("{}", duration);
+        if result.errors.is_empty() {
+            CACHE
+                .write()
+                .unwrap()
+                .insert(serde_json::to_value(all_facts).unwrap());
         }
 
         result

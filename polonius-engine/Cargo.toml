@@ -8,7 +8,13 @@ repository = "https://github.com/rust-lang-nursery/polonius"
 readme = "README.md"
 keywords = ["compiler", "borrowck", "datalog"]
 
+edition = "2018"
+
 [dependencies]
 datafrog = "2.0.0"
 rustc-hash = "1.0.0"
 log = "0.4"
+
+serde = { version = "1", features = ["derive"] }
+cargo_metadata = "0.19.2"
+serde_json = "1.0.140"
