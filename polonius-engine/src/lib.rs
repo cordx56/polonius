@@ -1,3 +1,7 @@
+#![allow(unused_extern_crates)]
+#![allow(rustc::default_hash_types)]
+#![allow(rustc::potential_query_instability)]
+
 /// Contains the core of the Polonius borrow checking engine.
 /// Input is fed in via AllFacts, and outputs are returned via Output
 extern crate datafrog;

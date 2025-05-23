@@ -156,7 +156,7 @@ impl FactTypes for DeAtom {
     type Path = DeAtom;
 }
 
-pub type SerdeFacts = AllFacts<DeAtom>;
+pub(crate) type SerdeFacts = AllFacts<DeAtom>;
 
 #[derive(
     Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, serde::Serialize, serde::Deserialize,

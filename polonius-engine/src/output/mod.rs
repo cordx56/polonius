@@ -39,7 +39,7 @@ const CACHE_FILE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
         pathbuf.join(&krate)
     }
 });
-pub const CACHE: LazyLock<RwLock<HashSet<serde_json::Value>>> = LazyLock::new(|| {
+const CACHE: LazyLock<RwLock<HashSet<serde_json::Value>>> = LazyLock::new(|| {
     use std::io::Read;
     if let Ok(mut file) = std::fs::OpenOptions::new()
         .read(true)
@@ -193,7 +193,7 @@ impl<T: FactTypes> Output<T> {
     pub fn compute(all_facts: &AllFacts<T>, algorithm: Algorithm, dump_enabled: bool) -> Self {
         let start = SystemTime::now();
 
-        let fustc_enable = option_env!("ENABLE_FUSTC").is_some();
+        let fustc_enable = std::env::var("ENABLE_FUSTC").is_ok();
         if fustc_enable {
             if CACHE
                 .read()
